@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Music Industry Chess (Black & White)</title>
+<style>
+  :root{
+    --light:#ffffff;
+    --dark:#000000;
+    --bg:#f8f8f8;
+    --ui:#ffffff;
+    --shadow:0 6px 20px rgba(0,0,0,0.15);
+  }
+  html,body{margin:0;padding:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;color:#000}
+  .wrap{max-width:960px;margin:24px auto;padding:16px}
+  .hero{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+  .board{width:min(90vw,560px);aspect-ratio:1;border-radius:8px;overflow:hidden;box-shadow:var(--shadow);border:2px solid #000;background:var(--light);position:relative;user-select:none}
+  .grid{display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:100%;height:100%}
+  .sq{display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;cursor:pointer;transition:transform .05s ease}
+  .sq.light{background:var(--light)}
+  .sq.dark{background:var(--dark)}
+  .sq.highlight{outline:3px solid #999;outline-offset:-3px}
+  .sq.move{box-shadow:inset 0 0 0 3px rgba(0,0,0,.4)}
+  .piece{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1;margin:0 2px;text-align:center}
+  .piece div:first-child{font-size:24px}
+  .w .piece{color:#000}
+  .b .piece{color:#fff}
+  .label{font-size:10px;font-weight:600;letter-spacing:.2px;opacity:.9;background:transparent;padding:2px 4px;border-radius:3px}
+  .turn{padding:10px 12px;background:var(--ui);border:1px solid #000;border-radius:8px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
+  .pill{padding:6px 10px;border-radius:999px;border:1px solid #000;background:#fff;font-weight:600}
+  .side{display:flex;flex-direction:column;gap:16px;flex:1;min-width:240px}
+  .log{background:var(--ui);border:1px solid #000;border-radius:8px;box-shadow:var(--shadow);padding:12px;max-height:340px;overflow:auto}
+  .log h3{margin:0 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:.12em;color:#000}
+  .moves{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;font-size:13px;line-height:1.45;white-space:pre-wrap}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  button{border:1px solid #000;background:#fff;color:#000;border-radius:6px;padding:6px 10px;cursor:pointer;font-weight:600}
+  button:hover{background:#000;color:#fff}
+  .tip{font-size:12px;color:#333}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="turn">
+      <span>Turn:</span>
+      <span id="turnPill" class="pill">White (Artists)</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="flipBtn">Flip board</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+  </div>
+  <div class="hero">
+    <div class="board" id="board"></div>
+    <div class="side">
+      <div class="log">
+        <h3>Move List</h3>
+        <div class="moves" id="moves"></div>
+      </div>
+      <div class="log">
+        <h3>Legend</h3>
+        <div class="moves">
+          ♔/♚ <b>Exec</b> (King)<br>
+          ♕/♛ <b>Streaming</b> (Queen)<br>
+          ♖/♜ <b>Label</b> (Rook)<br>
+          ♗/♝ <b>Publisher</b> (Bishop)<br>
+          ♘/♞ <b>Manager</b> (Knight)<br>
+          ♙/♟ <b>Artist</b> (Pawn)
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const EMPTY=null;const FILES=['a','b','c','d','e','f','g','h'];const RANKS=['1','2','3','4','5','6','7','8'];
+  function clone(o){return JSON.parse(JSON.stringify(o));}
+  class Chess{constructor(){this.reset();}reset(){this.board=[['r','n','b','q','k','b','n','r'],['p','p','p','p','p','p','p','p'],[EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],[EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],[EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],[EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],['P','P','P','P','P','P','P','P'],['R','N','B','Q','K','B','N','R']];this.turnColor='w';this.castling={w:{K:true,Q:true},b:{K:true,Q:true}};this.ep=null;this.halfmove=0;this.fullmove=1;this.history=[];}inBounds(r,c){return r>=0&&r<8&&c>=0&&c<8;}findKing(color){const t=color==='w'?'K':'k';for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(this.board[r][c]===t)return[r,c];return null;}isWhite(p){return p&&p===p.toUpperCase();}isBlack(p){return p&&p===p.toLowerCase();}opposite(c){return c==='w'?'b':'w';}generateMoves(color=this.turnColor){const moves=[];const add=(fr,fc,tr,tc,f={})=>moves.push({from:[fr,fc],to:[tr,tc],flags:f});const own=color==='w'?this.isWhite.bind(this):this.isBlack.bind(this);const opp=color==='w'?this.isBlack.bind(this):this.isWhite.bind(this);for(let r=0;r<8;r++){for(let c=0;c<8;c++){const p=this.board[r][c];if(!p||!own(p))continue;const up=p.toUpperCase();if(up==='P'){const dir=color==='w'?-1:1;const start=color==='w'?6:1;const promo=color==='w'?0:7;if(this.inBounds(r+dir,c)&&!this.board[r+dir][c]){add(r,c,r+dir,c,{promo:r+dir===promo});if(r===start&&!this.board[r+2*dir][c])add(r,c,r+2*dir,c,{double:true});}for(const dc of[-1,1]){const nr=r+dir,nc=c+dc;if(!this.inBounds(nr,nc))continue;const cap=this.board[nr][nc];if(cap&&opp(cap))add(r,c,nr,nc,{capture:true,promo:nr===promo});}if(this.ep){const[epF,epR]=[FILES.indexOf(this.ep[0]),RANKS.indexOf(this.ep[1])];if(Math.abs(epF-c)===1&&epR===r+dir)add(r,c,epR,epF,{enpassant:true});}}else if(up==='N'){const d=[[2,1],[1,2],[-1,2],[-2,1],[-2,-1],[-1,-2],[1,-2],[2,-1]];for(const[dr,dc]of d){const nr=r+dr,nc=c+dc;if(this.inBounds(nr,nc)){const t=this.board[nr][nc];if(!t||opp(t))add(r,c,nr,nc,{capture:!!t});}}}else if(up==='B'||up==='R'||up==='Q'){const dirs=[];if(up==='B'||up==='Q')dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);if(up==='R'||up==='Q')dirs.push([1,0],[-1,0],[0,1],[0,-1]);for(const[dr,dc]of dirs){let nr=r+dr,nc=c+dc;while(this.inBounds(nr,nc)){const t=this.board[nr][nc];if(!t)add(r,c,nr,nc);else{if(opp(t))add(r,c,nr,nc,{capture:true});break;}nr+=dr;nc+=dc;}}}else if(up==='K'){for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(this.inBounds(nr,nc)){const t=this.board[nr][nc];if(!t||opp(t))add(r,c,nr,nc,{capture:!!t});}}}}}const legal=[];for(const m of moves){const snap=this.snapshot();this._makeMove(m);if(!this.inCheck(color))legal.push(m);this.restore(snap);}return legal;}inCheck(color){const k=this.findKing(color);if(!k)return false;const[kr,kc]=k;const oppColor=this.opposite(color);const attacks=[];const own=oppColor==='w'?this.isWhite.bind(this):this.isBlack.bind(this);for(let r=0;r<8;r++){for(let c=0;c<8;c++){const p=this.board[r][c];if(!p||!own(p))continue;const up=p.toUpperCase();if(up==='P'){const dir=oppColor==='w'?-1:1;for(const dc of[-1,1]){const nr=r+dir,nc=c+dc;if(this.inBounds(nr,nc))attacks.push([nr,nc]);}}else if(up==='N'){const d=[[2,1],[1,2],[-1,2],[-2,1],[-2,-1],[-1,-2],[1,-2],[2,-1]];for(const[dr,dc]of d){const nr=r+dr,nc=c+dc;if(this.inBounds(nr,nc))attacks.push([nr,nc]);}}else if(up==='B'||up==='R'||up==='Q'){const dirs=[];if(up==='B'||up==='Q')dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);if(up==='R'||up==='Q')dirs.push([1,0],[-1,0],[0,1],[0,-1]);for(const[dr,dc]of dirs){let nr=r+dr,nc=c+dc;while(this.inBounds(nr,nc)){attacks.push([nr,nc]);if(this.board[nr][nc])break;nr+=dr;nc+=dc;}}}else if(up==='K'){for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(this.inBounds(nr,nc))attacks.push([nr,nc]);}}}}return attacks.some(([r,c])=>r===kr&&c===kc);}snapshot(){return{board:clone(this.board),turnColor:this.turnColor,castling:clone(this.castling),ep:this.ep,halfmove:this.halfmove,fullmove:this.fullmove};}restore(s){this.board=clone(s.board);this.turnColor=s.turnColor;this.castling=clone(s.castling);this.ep=s.ep;this.halfmove=s.halfmove;this.fullmove=s.fullmove;} _makeMove(m){const[fr,fc]=m.from,[tr,tc]=m.to;const piece=this.board[fr][fc];this.ep=null;if(piece.toUpperCase()==='P'||this.board[tr][tc])this.halfmove=0;else this.halfmove++;this.board[tr][tc]=piece;this.board[fr][fc]=EMPTY;if(m.flags.enpassant){const dir=this.turnColor==='w'?-1:1;this.board[tr-dir][tc]=EMPTY;}if(m.flags.double){this.ep=FILES[fc]+RANKS[(fr+tr)/2];}const promo=this.turnColor==='w'?0:7;if((piece==='P'&&tr===promo)||(piece==='p'&&tr===promo))this.board[tr][tc]=this.turnColor==='w'?'Q':'q';if(this.turnColor==='b')this.fullmove++;this.turnColor=this.opposite(this.turnColor);}move(from,to){const[fr,fc]=[RANKS.indexOf(from[1]),FILES.indexOf(from[0])];const[tr,tc]=[RANKS.indexOf(to[1]),FILES.indexOf(to[0])];const legal=this.generateMoves().find(m=>m.from[0]===fr&&m.from[1]===fc&&m.to[0]===tr&&m.to[1]===tc);if(!legal)return null;const snap=this.snapshot();this._makeMove(legal);this.history.push({from,to,flags:legal.flags,snap});return legal;}gameOver(){const legal=this.generateMoves();if(legal.length>0)return null;if(this.inCheck(this.turnColor))return'checkmate';return'stalemate';}}
+  const boardEl=document.getElementById('board'),movesEl=document.getElementById('moves'),flipBtn=document.getElementById('flipBtn'),resetBtn=document.getElementById('resetBtn'),turnPill=document.getElementById('turnPill');const game=new Chess();let flipped=false;let selected=null;const THEME={'P':{glyph:'♟',name:'Artist'},'N':{glyph:'♞',name:'Manager'},'B':{glyph:'♝',name:'Publisher'},'R':{glyph:'♜',name:'Label'},'Q':{glyph:'♛',name:'Streaming'},'K':{glyph:'♚',name:'Exec'}};function algebraic(r,c){return FILES[c]+RANKS[r];}function render(){boardEl.innerHTML='';const grid=document.createElement('div');grid.className='grid';for(let r=0;r<8;r++){for(let c=0;c<8;c++){const rr=flipped?7-r:r,cc=flipped?7-c:c;const sq=document.createElement('div');sq.className='sq '+(((r+c)%2)===0?'light':'dark');const piece=game.board[rr][cc];if(piece){const isW=piece===piece.toUpperCase();const theme=THEME[piece.toUpperCase()];const wrap=document.createElement('div');wrap.className='piece '+(isW?'w':'b');wrap.innerHTML=`<div>${theme.glyph}</div><div class="label">${theme.name}</div>`;sq.appendChild(wrap);}sq.dataset.r=rr;sq.dataset.c=cc;sq.addEventListener('click',onSq);grid.appendChild(sq);}}boardEl.appendChild(grid);turnPill.textContent=game.turnColor==='w'?'White (Artists)':'Black (Incumbents)';updateMoves();}function updateMoves(){let out='',num=1;for(let i=0;i<game.history.length;i++){const h=game.history[i];const san=h.from+h.to;if(i%2===0)out+=(num++)+'. '+san+'   ';else out+=san+'\n';}movesEl.textContent=out;}function onSq(e){const r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c,p=game.board[r][c];if(selected){const from=algebraic(selected.r,selected.c),to=algebraic(r,c);const mv=game.move(from,to);if(mv){selected=null;render();const over=game.gameOver();if(over)alert(over);}else{selected=null;render();}}else{if(p&&((game.turnColor==='w'&&p===p.toUpperCase())||(game.turnColor==='b'&&p===p.toLowerCase()))){selected={r,c};render();}}}flipBtn.onclick=()=>{flipped=!flipped;render();};resetBtn.onclick=()=>{game.reset();selected=null;render();};render();
+})();
+</script>
+</body>
+</html>
